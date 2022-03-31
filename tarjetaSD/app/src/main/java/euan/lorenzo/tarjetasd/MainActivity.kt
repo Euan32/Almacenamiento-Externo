@@ -1,69 +1,48 @@
 package euan.lorenzo.tarjetasd
 
-import android.Manifest
-import android.content.pm.PackageManager
+
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import euan.lorenzo.tarjetasd.databinding.ActivityMainBinding
-import java.io.BufferedReader
-import java.io.File
-import java.io.FileInputStream
-import java.io.InputStreamReader
-
+import android.database.sqlite.SQLiteDatabase
 
 class MainActivity : AppCompatActivity() {
 
     lateinit var binding: ActivityMainBinding
+    lateinit var amigosDBHelper: miSQLiteHelper
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        if ((ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)!=
-                    PackageManager.PERMISSION_GRANTED) || (ContextCompat.checkSelfPermission(this,Manifest.permission.WRITE_EXTERNAL_STORAGE)!=
-                    PackageManager.PERMISSION_GRANTED)){
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE),123
-                )
-
-        }
-
-        binding.btnGuardar.setOnClickListener{
-            Guardar(binding.etNuevoDato.text.toString())
-            binding.tvContenido.text=Cargar()
-        }
-    }
-    fun Guardar(texto:String){
-        try{
-            val rutaSD= baseContext.getExternalFilesDir(null)?.absolutePath
-            val miCarpeta= File(rutaSD,"datos")
-            if (!miCarpeta.exists()){
-                miCarpeta.mkdir()
+        amigosDBHelper = miSQLiteHelper(this)
+        binding.btnGuardar.setOnClickListener {
+            if (binding.etNombre.text.isNotBlank() && binding.etEmail.text.isNotBlank()) {
+                amigosDBHelper.anadirDato(binding.etNombre.text.toString(), binding.etEmail.text.toString())
+                binding.etNombre.text.clear()
+                binding.etEmail.text.clear()
+                Toast.makeText(this, "Guardado", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "No se ha podido guardar", Toast.LENGTH_LONG).show()
             }
-            val ficheroFisico = File(miCarpeta,"datos.txt")
-            ficheroFisico.appendText("$texto\n")
-        }catch (e: Exception){
-            Toast.makeText(this, "No se ha podido guardar", Toast.LENGTH_LONG).show()
         }
-    }
-    fun Cargar():String{
-        var texto= ""
-        try{
-            val rutaSD=baseContext.getExternalFilesDir(null)?.absolutePath
-            val miCarpeta= File(rutaSD,"datos")
-            val ficheroFisico = File(miCarpeta,"datos.txt")
-            val fichero = BufferedReader(InputStreamReader(FileInputStream(ficheroFisico)))
 
-            texto = fichero.use(BufferedReader::readText)
-        }catch (e:Exception){
-
+        binding.btnConcultar.setOnClickListener {
+            binding.tvContenido.text = ""
+            val db: SQLiteDatabase = amigosDBHelper.readableDatabase
+            val cursor= db.rawQuery(
+                "SELECT * FROM amigos",
+                null
+            )
+            if (cursor.moveToFirst()){
+                do {
+                    binding.tvContenido.append(cursor.getInt(0).toString() + ": ")
+                    binding.tvContenido.append(cursor.getString(1).toString() + ", ")
+                    binding.tvContenido.append(cursor.getString(2).toString() + "\n")
+                } while (cursor.moveToNext())
+            }
         }
-        return texto
     }
 }
